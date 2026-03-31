@@ -1,0 +1,15 @@
+packages:
+  "framer-motion": "For premium page transitions, stagger animations, and fluid interactive elements"
+  "date-fns": "For formatting human-readable timestamps in the data tables"
+  "clsx": "For conditional class name merging"
+  "tailwind-merge": "For resolving tailwind class conflicts in reusable components"
+
+images:
+  - path: "artifacts/dashboard/public/images/dashboard-bg.png"
+    description: "Abstract dark mode background with deep indigo and violet mesh gradients, very subtle futuristic tech grid overlay, extremely polished and dark"
+    aspect_ratio: "16:9"
+
+notes:
+  - Using generated hooks directly from @workspace/api-client-react.
+  - Ensuring wouter links do not nest <a> tags.
+  - Using a dark-mode premium aesthetic with glassmorphism and high contrast.
