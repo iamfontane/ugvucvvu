@@ -1,0 +1,1245 @@
+openapi: 3.1.0
+info:
+  title: NovaBrowser API
+  version: 0.3.0
+  description: Production-grade browser automation and profile management API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: profiles
+    description: Browser profile management
+  - name: jobs
+    description: Browser job control
+  - name: dashboard
+    description: Dashboard stats
+  - name: templates
+    description: Profile templates
+  - name: teams
+    description: Team management
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /profiles:
+    get:
+      operationId: listProfiles
+      tags: [profiles]
+      summary: List all browser profiles with optional filters
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: tag
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrowserProfile"
+    post:
+      operationId: createProfile
+      tags: [profiles]
+      summary: Create a new browser profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProfileRequest"
+      responses:
+        "201":
+          description: Created profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserProfile"
+
+  /profiles/{id}:
+    get:
+      operationId: getProfile
+      tags: [profiles]
+      summary: Get a browser profile by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserProfile"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProfile
+      tags: [profiles]
+      summary: Delete a browser profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateProfile
+      tags: [profiles]
+      summary: Update profile fields (name, notes, tags, proxy, platform, teamId)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserProfile"
+
+  /profiles/{id}/start:
+    post:
+      operationId: startProfileJob
+      tags: [profiles]
+      summary: Queue a browse job for a specific profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartProfileJobRequest"
+      responses:
+        "200":
+          description: Job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartJobResponse"
+
+  /profiles/{id}/login:
+    post:
+      operationId: loginProfile
+      tags: [profiles]
+      summary: Queue a platform login job for a profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Login job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartJobResponse"
+        "400":
+          description: Missing credentials or platform
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /profiles/{id}/warmup:
+    post:
+      operationId: warmupProfile
+      tags: [profiles]
+      summary: Trigger a warmup run for a profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Warmup queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartJobResponse"
+
+  /profiles/{id}/healthcheck:
+    post:
+      operationId: triggerHealthCheck
+      tags: [profiles]
+      summary: Trigger a session health check for a profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Health check queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartJobResponse"
+
+  /profiles/{id}/clone:
+    post:
+      operationId: cloneProfile
+      tags: [profiles]
+      summary: Duplicate a browser profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Cloned profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserProfile"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /profiles/bulk-delete:
+    post:
+      operationId: bulkDeleteProfiles
+      tags: [profiles]
+      summary: Delete multiple profiles at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - ids
+      responses:
+        "200":
+          description: Deleted profile IDs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  deleted:
+                    type: number
+                  ids:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - success
+                  - deleted
+                  - ids
+
+  /profiles/{id}/fingerprint:
+    patch:
+      operationId: updateFingerprint
+      tags: [profiles]
+      summary: Replace the fingerprint for a profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrowserFingerprint"
+      responses:
+        "200":
+          description: Updated fingerprint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /profiles/{id}/fingerprint/regenerate:
+    post:
+      operationId: regenerateFingerprint
+      tags: [profiles]
+      summary: Generate a fresh fingerprint for a profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                templateId:
+                  type: string
+      responses:
+        "200":
+          description: New fingerprint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /profiles/{id}/extensions:
+    patch:
+      operationId: updateExtensions
+      tags: [profiles]
+      summary: Update extensions list for a profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                extensions:
+                  type: array
+                  items: {}
+              required:
+                - extensions
+      responses:
+        "200":
+          description: Updated extensions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /profiles/extensions/catalog:
+    get:
+      operationId: getExtensionCatalog
+      tags: [profiles]
+      summary: Get available extensions catalog
+      responses:
+        "200":
+          description: Extension catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExtensionCatalogEntry"
+
+  /profiles/{id}/cookies/import:
+    post:
+      operationId: importCookies
+      tags: [profiles]
+      summary: Import cookies into a profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cookies:
+                  type: array
+                  items: {}
+              required:
+                - cookies
+      responses:
+        "200":
+          description: Cookies imported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /profiles/{id}/cookies/export:
+    get:
+      operationId: exportCookies
+      tags: [profiles]
+      summary: Export cookies from a profile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Exported cookies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  profileId:
+                    type: string
+                  cookies:
+                    type: array
+                    items: {}
+                  count:
+                    type: number
+                required:
+                  - profileId
+                  - cookies
+                  - count
+
+  /profiles/batch-login:
+    post:
+      operationId: batchLogin
+      tags: [profiles]
+      summary: Queue login jobs for all profiles matching a tag or platform
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchLoginRequest"
+      responses:
+        "200":
+          description: Batch jobs queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchLoginResponse"
+
+  /templates:
+    get:
+      operationId: listTemplates
+      tags: [templates]
+      summary: List all profile templates
+      responses:
+        "200":
+          description: Templates list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProfileTemplate"
+
+  /templates/{id}/preview:
+    get:
+      operationId: previewTemplate
+      tags: [templates]
+      summary: Preview fingerprint for a template
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Template + fingerprint preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  template:
+                    $ref: "#/components/schemas/ProfileTemplate"
+                  fingerprint:
+                    $ref: "#/components/schemas/BrowserFingerprint"
+                required:
+                  - template
+                  - fingerprint
+
+  /teams:
+    get:
+      operationId: listTeams
+      tags: [teams]
+      summary: List all teams
+      responses:
+        "200":
+          description: Teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Team"
+    post:
+      operationId: createTeam
+      tags: [teams]
+      summary: Create a team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTeamRequest"
+      responses:
+        "201":
+          description: Created team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Team"
+
+  /teams/{id}:
+    get:
+      operationId: getTeam
+      tags: [teams]
+      summary: Get team details with members and profiles
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Team detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamDetail"
+    delete:
+      operationId: deleteTeam
+      tags: [teams]
+      summary: Delete a team
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [teams]
+      summary: List all users
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [teams]
+      summary: Create a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /browser/start:
+    post:
+      operationId: startBrowserJob
+      tags: [jobs]
+      summary: Start a browser job using an available profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartJobRequest"
+      responses:
+        "200":
+          description: Job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartJobResponse"
+
+  /browser/jobs:
+    get:
+      operationId: listJobs
+      tags: [jobs]
+      summary: List queued and recent jobs from Redis queue
+      responses:
+        "200":
+          description: Jobs list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobStatus"
+
+  /jobs/history:
+    get:
+      operationId: listJobHistory
+      tags: [jobs]
+      summary: List job execution history from database
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Job history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobHistoryRecord"
+
+  /jobs/history/profile/{profileId}:
+    get:
+      operationId: listProfileJobHistory
+      tags: [jobs]
+      summary: List job history for a specific profile
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profile job history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JobHistoryRecord"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard stats
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    BrowserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+          nullable: true
+        teamId:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        platform:
+          type: string
+          nullable: true
+        proxy:
+          type: string
+          nullable: true
+        userAgent:
+          type: string
+          nullable: true
+        cookies:
+          nullable: true
+        localStorage:
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        status:
+          type: string
+          enum: [idle, busy, error]
+        failureCount:
+          type: number
+        failureReason:
+          type: string
+          nullable: true
+        needsAttention:
+          type: boolean
+        lastValidated:
+          type: string
+          nullable: true
+        lastUsed:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        fingerprint:
+          nullable: true
+        templateId:
+          type: string
+          nullable: true
+        extensions:
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      required:
+        - id
+        - status
+        - createdAt
+        - failureCount
+        - needsAttention
+
+    CreateProfileRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        teamId:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+          description: Login credential — stored securely
+        platform:
+          type: string
+          enum: [discord, instagram, twitter, youtube]
+          description: Target platform for this profile
+        proxy:
+          type: string
+          description: Proxy URL (auto-assigned from pool if omitted)
+        userAgent:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        templateId:
+          type: string
+          description: Profile template ID to base fingerprint on
+        notes:
+          type: string
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        notes:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        proxy:
+          type: string
+        platform:
+          type: string
+        teamId:
+          type: string
+
+    BrowserFingerprint:
+      type: object
+      properties:
+        os:
+          type: string
+        osVersion:
+          type: string
+        browser:
+          type: string
+        browserVersion:
+          type: string
+        userAgent:
+          type: string
+        platform:
+          type: string
+        vendor:
+          type: string
+        screenWidth:
+          type: number
+        screenHeight:
+          type: number
+        colorDepth:
+          type: number
+        pixelRatio:
+          type: number
+        cpuCores:
+          type: number
+        deviceMemory:
+          type: number
+        timezone:
+          type: string
+        language:
+          type: string
+        languages:
+          type: array
+          items:
+            type: string
+        webglVendor:
+          type: string
+        webglRenderer:
+          type: string
+        audioNoiseSeed:
+          type: number
+        canvasNoiseSeed:
+          type: number
+        fonts:
+          type: array
+          items:
+            type: string
+        webrtcPolicy:
+          type: string
+        touchPoints:
+          type: number
+        connectionType:
+          type: string
+        connectionRtt:
+          type: number
+        connectionDownlink:
+          type: number
+      required:
+        - os
+        - browser
+        - userAgent
+        - timezone
+        - language
+
+    ProfileTemplate:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        os:
+          type: string
+        browser:
+          type: string
+        icon:
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - os
+        - browser
+        - icon
+
+    ExtensionCatalogEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        chromeId:
+          type: string
+          nullable: true
+        category:
+          type: string
+      required:
+        - id
+        - name
+        - description
+        - category
+
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - createdAt
+
+    TeamDetail:
+      allOf:
+        - $ref: "#/components/schemas/Team"
+        - type: object
+          properties:
+            members:
+              type: array
+              items:
+                $ref: "#/components/schemas/User"
+            profiles:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                    nullable: true
+                  status:
+                    type: string
+                  platform:
+                    type: string
+                    nullable: true
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        teamId:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required:
+        - id
+        - email
+        - name
+        - role
+        - isActive
+        - createdAt
+
+    CreateTeamRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        ownerId:
+          type: string
+      required:
+        - name
+
+    CreateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        teamId:
+          type: string
+      required:
+        - email
+        - name
+
+    StartJobRequest:
+      type: object
+      properties:
+        url:
+          type: string
+        profileId:
+          type: string
+        delayMs:
+          type: number
+      required:
+        - url
+
+    StartProfileJobRequest:
+      type: object
+      properties:
+        url:
+          type: string
+        delayMs:
+          type: number
+      required:
+        - url
+
+    BatchLoginRequest:
+      type: object
+      properties:
+        tag:
+          type: string
+        platform:
+          type: string
+        delayBetweenMs:
+          type: number
+
+    BatchLoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        queued:
+          type: number
+        jobs:
+          type: array
+          items:
+            type: object
+            properties:
+              jobId:
+                type: string
+              profileId:
+                type: string
+              workflow:
+                type: string
+      required:
+        - success
+        - queued
+        - jobs
+
+    StartJobResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        jobId:
+          type: string
+        profileId:
+          type: string
+        platform:
+          type: string
+          nullable: true
+        workflow:
+          type: string
+          nullable: true
+        message:
+          type: string
+      required:
+        - success
+        - jobId
+        - profileId
+
+    JobStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        profileId:
+          type: string
+        url:
+          type: string
+          nullable: true
+        state:
+          type: string
+        createdAt:
+          type: string
+        finishedAt:
+          type: string
+          nullable: true
+        error:
+          type: string
+          nullable: true
+      required:
+        - id
+        - profileId
+        - state
+        - createdAt
+
+    JobHistoryRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        profileId:
+          type: string
+        jobType:
+          type: string
+        platform:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        state:
+          type: string
+        errorType:
+          type: string
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        durationMs:
+          type: number
+          nullable: true
+        retryCount:
+          type: number
+        createdAt:
+          type: string
+        finishedAt:
+          type: string
+          nullable: true
+      required:
+        - id
+        - profileId
+        - jobType
+        - state
+        - retryCount
+        - createdAt
+
+    DashboardStats:
+      type: object
+      properties:
+        totalProfiles:
+          type: number
+        idleProfiles:
+          type: number
+        busyProfiles:
+          type: number
+        errorProfiles:
+          type: number
+        needsAttention:
+          type: number
+        platformStats:
+          type: object
+          additionalProperties:
+            type: number
+        queueAvailable:
+          type: boolean
+        pendingJobs:
+          type: number
+        activeJobs:
+          type: number
+        completedJobs:
+          type: number
+        failedJobs:
+          type: number
+      required:
+        - totalProfiles
+        - idleProfiles
+        - busyProfiles
+        - errorProfiles
+        - needsAttention
+        - queueAvailable
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message
